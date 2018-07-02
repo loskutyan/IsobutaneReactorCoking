@@ -6,6 +6,45 @@ import numpy as np
 from ..exceptions import NotReadyModelError
 
 
+class AnalysisLinearTrendsExtractor:
+    TAGS_TO_PROCESS = ["Водород, %", "Азот N2, %", "Окись углерода, %", "Метан, %", "Сумма этан+этилен, %",
+                       "Двуокись углерода, %", "Сумма углеводородов С3, %", "Изобутан, %", "н-Бутан, %",
+                       "Бутен1+изобутилен, %", "Сумма бутиленов, %", "Бутадиен-1,3, %",
+                       "Массовая доля суммы углеводородов С5 и выше, %"]
+
+    def __init__(self, period):
+        self._period = period
+
+    @staticmethod
+    def calculate_linear_trend(values_series):
+        x = values_series.index - values_series.index[0].total_seconds()
+        A = np.vstack([x, np.ones(len(x))]).T
+        y = values_series.values
+        coef, intercept = np.linalg.lstsq(A, y, None)[0]
+        return coef, intercept
+
+    def extract_data_with_linear_trends(self, chemical_analysis_data):
+        data_to_process = chemical_analysis_data[AnalysisLinearTrendsExtractor.TAGS_TO_PROCESS].dropna(how='all')
+        result = pd.DataFrame(data=None, index=data_to_process.index)
+        for tag in data_to_process.columns:
+            values_series = data_to_process[tag]
+            coefs_and_intercepts = []
+            index = []
+            for i in sorted(values_series.index):
+                if values_series.loc[i] is not None and str(values_series.loc[i]) != 'nan':
+                    period_values_series = values_series.loc[i - self._period: i]
+                    coefs_and_intercepts.append(self.calculate_linear_trend(period_values_series))
+                    index.append(i)
+            coefs, intercepts = zip(*coefs_and_intercepts)
+            tag_result = pd.DataFrame({
+                tag: values_series.loc[index].values,
+                '{}_coef'.format(tag): coefs,
+                '{}_intercept'.format(tag): intercepts
+            }, index=index).sort_index(axis=1)
+            result.merge(tag_result, left_index=True, right_index=True, how='outer', inplace=True)
+        return result
+
+
 class NNTemperaturesFeaturesExtractor:
     FEATURE_NAME_PREFIX = 'Температура_'
 
@@ -33,7 +72,7 @@ class NNTemperaturesFeaturesExtractor:
         return [period_sensor_data.loc[dt - self._interval * (i + 1): dt - self._interval * i].mean()
                 for i in range(self._input_time_intervals_number)]
 
-    def calculate_features(self, temperature_sensor_data, chemical_analysis_data):
+    def extract_features(self, temperature_sensor_data, chemical_analysis_data):
         if self._nn_model is None:
             raise NotReadyModelError('temperatures NN-encoded features model wasn\'t loaded or trained')
         result_index = chemical_analysis_data.index
@@ -52,6 +91,7 @@ class NNTemperaturesFeaturesExtractor:
 class FeaturesExtractor:
     ABOVE_TEMP_DELTA_FEATURE_NAME = 'delta_top'
     BELOW_TEMP_DELTA_FEATURE_NAME = 'delta_bot'
+    ANGLES_FEATURES_NAME = ['angle{}'.format(i + 1) for i in range(4)]
 
     def __init__(self, sensor_id, reactor, interval=datetime.timedelta(hours=12)):
         self._sensor_id = sensor_id
@@ -90,6 +130,10 @@ class FeaturesExtractor:
         below_plate_mean_temperatures = interval_mean_temperatures[below_plate_sensors].mean(axis=1)
         return (below_plate_mean_temperatures - interval_mean_temperatures[self._sensor_id]) \
             .rename(FeaturesExtractor.BELOW_TEMP_DELTA_FEATURE_NAME)
+
+    def _extract_angle_features(self, index):
+        return pd.DataFrame([self._plate.get_angle_array(self._sensor_id)] * len(index),
+                            index=index, columns=FeaturesExtractor.ANGLES_FEATURES_NAME)
 
     def extract_features(self, temperature_sensors_data, chemical_analysis_data):
         interval_mean_temperatures = self._collect_interval_mean_temperatures(temperature_sensors_data,
