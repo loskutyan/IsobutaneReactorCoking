@@ -3,7 +3,8 @@ import datetime
 import pandas as pd
 import numpy as np
 
-from ..exceptions import NotReadyModelError
+import constants
+from exceptions import NotReadyModelError
 
 
 class AnalysisLinearTrendsExtractor:
@@ -41,7 +42,7 @@ class AnalysisLinearTrendsExtractor:
                 '{}_coef'.format(tag): coefs,
                 '{}_intercept'.format(tag): intercepts
             }, index=index).sort_index(axis=1)
-            result.merge(tag_result, left_index=True, right_index=True, how='outer', inplace=True)
+            result = result.merge(tag_result, left_index=True, right_index=True, how='outer')
         return result
 
 
@@ -53,6 +54,8 @@ class NNTemperaturesFeaturesExtractor:
         self._input_time_intervals_number = input_time_intervals_number
         self._output_features_number = output_features_number
         self._interval = period / input_time_intervals_number
+        if self._interval <= constants.ONE_SECOND_DELTA:
+            raise ValueError('temperatures interval must be longer than one second')
         self._nn_model = nn_model
         if nn_model is not None:
             self._validate_model_parameters()
@@ -62,27 +65,32 @@ class NNTemperaturesFeaturesExtractor:
             raise ValueError('number of intervals is {} but must be equal\
              to neural network input shape ({})'.format(self._input_time_intervals_number,
                                                         self._nn_model.input_shape[1]))
-        if self._output_features_number != self._nn_model.output_shape[1]:
+        if self._output_features_number != self._nn_model.get_layer(index=0).output_shape[1]:
             raise ValueError('number of intervals is {} but must be equal\
-             to neural network input shape ({})'.format(self._output_features_number, self._nn_model.output_shape[1]))
+             to neural network input shape ({})'.format(self._output_features_number,
+                                                        self._nn_model.get_layer(index=0).output_shape[1]))
         return True
 
     def _calculate_features_row_for_datetime(self, temperature_sensor_data, dt):
         period_sensor_data = temperature_sensor_data.loc[dt - self._period: dt]
-        return [period_sensor_data.loc[dt - self._interval * (i + 1): dt - self._interval * i].mean()
+        return [period_sensor_data.loc[dt + constants.ONE_SECOND_DELTA - self._interval * (i + 1):
+                                       dt - self._interval * i].mean()
                 for i in range(self._input_time_intervals_number)]
 
-    def extract_features(self, temperature_sensor_data, chemical_analysis_data):
+    def extract_features(self, temperature_sensor_data, timestamps):
         if self._nn_model is None:
             raise NotReadyModelError('temperatures NN-encoded features model wasn\'t loaded or trained')
-        result_index = chemical_analysis_data.index
         nn_input = pd.DataFrame(
-            result_index.map(lambda dt: self._calculate_features_row_for_datetime(temperature_sensor_data,
+            timestamps.map(lambda dt: self._calculate_features_row_for_datetime(temperature_sensor_data,
                                                                                   dt)).tolist(),
-            index=result_index
-        ).values
-        nn_output = pd.DataFrame(self._nn_model.predict(nn_input),
-                                 index=result_index,
+            index=timestamps
+        )
+        nn_input_normalized = ((nn_input - constants.NN_NORMALIZING_EXPECTATION_EVALUATION) \
+                    / constants.NN_NORMALIZING_STD_EVALUATION)\
+            .fillna(0.0)\
+            .values
+        nn_output = pd.DataFrame(self._nn_model.predict(nn_input_normalized),
+                                 index=timestamps,
                                  columns=[NNTemperaturesFeaturesExtractor.FEATURE_NAME_PREFIX + str(i)
                                           for i in range(self._output_features_number)])
         return nn_output
