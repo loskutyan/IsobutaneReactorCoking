@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 import constants
-from exceptions import NotReadyModelError
+import exceptions
 
 
 class AnalysisLinearTrendsExtractor:
@@ -18,7 +18,7 @@ class AnalysisLinearTrendsExtractor:
 
     @staticmethod
     def calculate_linear_trend(values_series):
-        x = values_series.index - values_series.index[0].total_seconds()
+        x = (values_series.index - values_series.index[0]).total_seconds()
         A = np.vstack([x, np.ones(len(x))]).T
         y = values_series.values
         coef, intercept = np.linalg.lstsq(A, y, None)[0]
@@ -38,7 +38,6 @@ class AnalysisLinearTrendsExtractor:
                     index.append(i)
             coefs, intercepts = zip(*coefs_and_intercepts)
             tag_result = pd.DataFrame({
-                tag: values_series.loc[index].values,
                 '{}_coef'.format(tag): coefs,
                 '{}_intercept'.format(tag): intercepts
             }, index=index).sort_index(axis=1)
@@ -79,15 +78,15 @@ class NNTemperaturesFeaturesExtractor:
 
     def extract_features(self, temperature_sensor_data, timestamps):
         if self._nn_model is None:
-            raise NotReadyModelError('temperatures NN-encoded features model wasn\'t loaded or trained')
+            raise exceptions.NotReadyModelError('temperatures NN-encoded features model wasn\'t loaded or trained')
         nn_input = pd.DataFrame(
             timestamps.map(lambda dt: self._calculate_features_row_for_datetime(temperature_sensor_data,
-                                                                                  dt)).tolist(),
+                                                                                dt)).tolist(),
             index=timestamps
         )
         nn_input_normalized = ((nn_input - constants.NN_NORMALIZING_EXPECTATION_EVALUATION) \
-                    / constants.NN_NORMALIZING_STD_EVALUATION)\
-            .fillna(0.0)\
+                               / constants.NN_NORMALIZING_STD_EVALUATION) \
+            .fillna(0.0) \
             .values
         nn_output = pd.DataFrame(self._nn_model.predict(nn_input_normalized),
                                  index=timestamps,
@@ -101,7 +100,8 @@ class FeaturesExtractor:
     BELOW_TEMP_DELTA_FEATURE_NAME = 'delta_bot'
     ANGLES_FEATURES_NAME = ['angle{}'.format(i + 1) for i in range(4)]
 
-    def __init__(self, sensor_id, reactor, interval=datetime.timedelta(hours=12)):
+    def __init__(self, sensor_id, reactor, interval=datetime.timedelta(hours=12), temperatures_features_extractor=None,
+                 analysis_features_extractor=None):
         self._sensor_id = sensor_id
         self._plate_name = reactor.find_plate_name(sensor_id)
         if self._plate_name is None:
@@ -109,12 +109,18 @@ class FeaturesExtractor:
         self._plate = reactor.get_plate(self._plate_name)
         self._reactor = reactor
         self._interval = interval
+        self._temperatures_features_extractor = temperatures_features_extractor
+        self._analysis_features_extractor = analysis_features_extractor
 
-    def _collect_interval_mean_temperatures(self, temperature_sensors_data, chemical_analysis_data):
-        result_index = chemical_analysis_data.index
+    @staticmethod
+    def _calculate_duration(timestamps):
+        return pd.DataFrame({'duration' : (timestamps - timestamps[0]).total_seconds().values / 3600.},
+                            index=timestamps)
+
+    def _collect_interval_mean_temperatures(self, temperature_sensors_data, timestamps):
         return pd.DataFrame(
-            result_index.map(lambda dt: temperature_sensors_data.loc[dt - self._interval: dt].mean().tolist()).tolist(),
-            index=result_index
+            timestamps.map(lambda dt: temperature_sensors_data.loc[dt - self._interval: dt].mean().tolist()).tolist(),
+            index=timestamps
         )
 
     def _extract_above_temperature_delta_features(self, interval_mean_temperatures):
@@ -139,11 +145,31 @@ class FeaturesExtractor:
         return (below_plate_mean_temperatures - interval_mean_temperatures[self._sensor_id]) \
             .rename(FeaturesExtractor.BELOW_TEMP_DELTA_FEATURE_NAME)
 
-    def _extract_angle_features(self, index):
-        return pd.DataFrame([self._plate.get_angle_array(self._sensor_id)] * len(index),
-                            index=index, columns=FeaturesExtractor.ANGLES_FEATURES_NAME)
+    def _extract_angle_features(self, timestamps):
+        return pd.DataFrame([self._plate.get_angle_array(self._sensor_id)] * len(timestamps),
+                            index=timestamps, columns=FeaturesExtractor.ANGLES_FEATURES_NAME)
 
     def extract_features(self, temperature_sensors_data, chemical_analysis_data):
-        interval_mean_temperatures = self._collect_interval_mean_temperatures(temperature_sensors_data,
-                                                                              chemical_analysis_data)
-        return pd.DataFrame()
+        timestamps = chemical_analysis_data.dropna(how='all').index
+        interval_mean_temperatures = self._collect_interval_mean_temperatures(temperature_sensors_data, timestamps)
+        above_temperature_delta = self._extract_above_temperature_delta_features(interval_mean_temperatures)
+        below_temperature_delta = self._extract_below_temperature_delta_features(interval_mean_temperatures)
+        angles = self._extract_angle_features(timestamps)
+        if self._temperatures_features_extractor is None:
+            raise exceptions.MissingComponentsWarning('no custom temperatures features extraction realized')
+        temperatures_features = self._temperatures_features_extractor.extract_features(
+            temperature_sensors_data[self._sensor_id]
+        )
+        if self._analysis_features_extractor is None:
+            raise exceptions.MissingComponentsWarning('no custom chemical analysis features extraction realized')
+        analysis_features = self._analysis_features_extractor.extract_features(chemical_analysis_data.loc[timestamps])
+        duration = self._calculate_duration(timestamps)
+        return pd.concat([
+            chemical_analysis_data.loc[timestamps],
+            analysis_features,
+            temperatures_features,
+            duration,
+            above_temperature_delta,
+            below_temperature_delta,
+            angles
+        ], axis=1)
