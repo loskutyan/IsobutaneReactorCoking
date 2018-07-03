@@ -1,10 +1,50 @@
-import datetime
-
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 import constants
 import exceptions
+
+
+def calculate_duration(timestamps):
+    return pd.DataFrame({'duration': (timestamps - timestamps[0]).total_seconds().values / 3600.},
+                        index=timestamps)
+
+
+def collect_interval_mean_temperatures(temperature_sensors_data, interval, timestamps):
+    return pd.DataFrame(
+        timestamps.map(lambda dt: temperature_sensors_data.loc[dt - interval: dt].mean().tolist()).tolist(),
+        index=timestamps,
+        columns=temperature_sensors_data.columns
+    )
+
+
+def extract_above_temperature_delta_features(interval_mean_temperatures, sensor_id, plate_name, reactor):
+    above_plate_name = reactor.get_plate_name_above(plate_name)
+    if above_plate_name == plate_name:
+        return pd.Series(np.zeros(interval_mean_temperatures.shape[0]),
+                         index=interval_mean_temperatures.index,
+                         name=FeaturesExtractor.ABOVE_TEMP_DELTA_FEATURE_NAME)
+    above_plate_sensors = reactor.get_plate(above_plate_name).get_sensors_list()
+    above_plate_mean_temperatures = interval_mean_temperatures[above_plate_sensors].mean(axis=1)
+    return (above_plate_mean_temperatures - interval_mean_temperatures[sensor_id]) \
+        .rename(FeaturesExtractor.ABOVE_TEMP_DELTA_FEATURE_NAME)
+
+
+def extract_below_temperature_delta_features(interval_mean_temperatures, sensor_id, plate_name, reactor):
+    below_plate_name = reactor.get_plate_name_below(plate_name)
+    if below_plate_name == plate_name:
+        return pd.Series(np.zeros(interval_mean_temperatures.shape[0]),
+                         index=interval_mean_temperatures.index,
+                         name=FeaturesExtractor.BELOW_TEMP_DELTA_FEATURE_NAME)
+    below_plate_sensors = reactor.get_plate(below_plate_name).get_sensors_list()
+    below_plate_mean_temperatures = interval_mean_temperatures[below_plate_sensors].mean(axis=1)
+    return (below_plate_mean_temperatures - interval_mean_temperatures[sensor_id]) \
+        .rename(FeaturesExtractor.BELOW_TEMP_DELTA_FEATURE_NAME)
+
+
+def extract_angle_features(timestamps, sensor_id, plate):
+    return pd.DataFrame([plate.get_angle_array(sensor_id)] * len(timestamps),
+                        index=timestamps, columns=FeaturesExtractor.ANGLES_FEATURES_NAME)
 
 
 class AnalysisLinearTrendsExtractor:
@@ -84,7 +124,7 @@ class NNTemperaturesFeaturesExtractor:
                                                                                 dt)).tolist(),
             index=timestamps
         )
-        nn_input_normalized = ((nn_input - constants.NN_NORMALIZING_EXPECTATION_EVALUATION) \
+        nn_input_normalized = ((nn_input - constants.NN_NORMALIZING_EXPECTATION_EVALUATION)
                                / constants.NN_NORMALIZING_STD_EVALUATION) \
             .fillna(0.0) \
             .values
@@ -100,72 +140,36 @@ class FeaturesExtractor:
     BELOW_TEMP_DELTA_FEATURE_NAME = 'delta_bot'
     ANGLES_FEATURES_NAME = ['angle{}'.format(i + 1) for i in range(4)]
 
-    def __init__(self, sensor_id, reactor, interval=datetime.timedelta(hours=12), temperatures_features_extractor=None,
-                 analysis_features_extractor=None):
-        self._sensor_id = sensor_id
-        self._plate_name = reactor.find_plate_name(sensor_id)
-        if self._plate_name is None:
-            raise ValueError('No plate with sensor {} in reactor found'.format(str(sensor_id)))
-        self._plate = reactor.get_plate(self._plate_name)
-        self._reactor = reactor
-        self._interval = interval
+    def __init__(self, temperatures_features_extractor=None, analysis_features_extractor=None):
         self._temperatures_features_extractor = temperatures_features_extractor
         self._analysis_features_extractor = analysis_features_extractor
 
-    @staticmethod
-    def _calculate_duration(timestamps):
-        return pd.DataFrame({'duration': (timestamps - timestamps[0]).total_seconds().values / 3600.},
-                            index=timestamps)
+    def extract(self, temperature_sensors_data, chemical_analysis_data, sensor_id, reactor,
+                mean_temperatures_interval=constants.TWELVE_HOURS_DELTA):
+        plate_name = reactor.find_plate_name(sensor_id)
+        if plate_name is None:
+            raise ValueError('No plate with sensor {} in reactor found'.format(str(sensor_id)))
+        plate = reactor.get_plate(plate_name)
 
-    def _collect_interval_mean_temperatures(self, temperature_sensors_data, timestamps):
-        return pd.DataFrame(
-            timestamps.map(lambda dt: temperature_sensors_data.loc[dt - self._interval: dt].mean().tolist()).tolist(),
-            index=timestamps,
-            columns=temperature_sensors_data.columns
-        )
-
-    def _extract_above_temperature_delta_features(self, interval_mean_temperatures):
-        above_plate_name = self._reactor.get_plate_name_above(self._plate_name)
-        if above_plate_name == self._plate_name:
-            return pd.Series(np.zeros(interval_mean_temperatures.shape[0]),
-                             index=interval_mean_temperatures.index,
-                             name=FeaturesExtractor.ABOVE_TEMP_DELTA_FEATURE_NAME)
-        above_plate_sensors = self._reactor.get_plate(above_plate_name).get_sensors_list()
-        above_plate_mean_temperatures = interval_mean_temperatures[above_plate_sensors].mean(axis=1)
-        return (above_plate_mean_temperatures - interval_mean_temperatures[self._sensor_id]) \
-            .rename(FeaturesExtractor.ABOVE_TEMP_DELTA_FEATURE_NAME)
-
-    def _extract_below_temperature_delta_features(self, interval_mean_temperatures):
-        below_plate_name = self._reactor.get_plate_name_below(self._plate_name)
-        if below_plate_name == self._plate_name:
-            return pd.Series(np.zeros(interval_mean_temperatures.shape[0]),
-                             index=interval_mean_temperatures.index,
-                             name=FeaturesExtractor.BELOW_TEMP_DELTA_FEATURE_NAME)
-        below_plate_sensors = self._reactor.get_plate(below_plate_name).get_sensors_list()
-        below_plate_mean_temperatures = interval_mean_temperatures[below_plate_sensors].mean(axis=1)
-        return (below_plate_mean_temperatures - interval_mean_temperatures[self._sensor_id]) \
-            .rename(FeaturesExtractor.BELOW_TEMP_DELTA_FEATURE_NAME)
-
-    def _extract_angle_features(self, timestamps):
-        return pd.DataFrame([self._plate.get_angle_array(self._sensor_id)] * len(timestamps),
-                            index=timestamps, columns=FeaturesExtractor.ANGLES_FEATURES_NAME)
-
-    def extract(self, temperature_sensors_data, chemical_analysis_data):
         timestamps = chemical_analysis_data.index
-        interval_mean_temperatures = self._collect_interval_mean_temperatures(temperature_sensors_data, timestamps)
-        above_temperature_delta = self._extract_above_temperature_delta_features(interval_mean_temperatures)
-        below_temperature_delta = self._extract_below_temperature_delta_features(interval_mean_temperatures)
-        angles = self._extract_angle_features(timestamps)
+        interval_mean_temperatures = collect_interval_mean_temperatures(temperature_sensors_data,
+                                                                        mean_temperatures_interval, timestamps)
+        above_temperature_delta = extract_above_temperature_delta_features(interval_mean_temperatures,
+                                                                           sensor_id, plate_name, reactor)
+        below_temperature_delta = extract_below_temperature_delta_features(interval_mean_temperatures,
+                                                                           sensor_id, plate_name, reactor)
+        angles = extract_angle_features(timestamps, sensor_id, plate)
+        duration = calculate_duration(timestamps)
+
         if self._temperatures_features_extractor is None:
             raise exceptions.MissingComponentsWarning('no custom temperatures features extraction realized')
         temperatures_features = self._temperatures_features_extractor.extract(
-            temperature_sensors_data[self._sensor_id],
+            temperature_sensors_data[sensor_id],
             timestamps
         )
         if self._analysis_features_extractor is None:
             raise exceptions.MissingComponentsWarning('no custom chemical analysis features extraction realized')
         analysis_features = self._analysis_features_extractor.extract(chemical_analysis_data.loc[timestamps])
-        duration = self._calculate_duration(timestamps)
         return pd.concat([
             chemical_analysis_data.loc[timestamps],
             analysis_features,
