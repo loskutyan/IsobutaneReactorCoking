@@ -24,7 +24,7 @@ class AnalysisLinearTrendsExtractor:
         coef, intercept = np.linalg.lstsq(A, y, None)[0]
         return coef, intercept
 
-    def extract_data_with_linear_trends(self, chemical_analysis_data):
+    def extract(self, chemical_analysis_data):
         data_to_process = chemical_analysis_data[AnalysisLinearTrendsExtractor.TAGS_TO_PROCESS].dropna(how='all')
         result = pd.DataFrame(data=None, index=data_to_process.index)
         for tag in data_to_process.columns:
@@ -76,7 +76,7 @@ class NNTemperaturesFeaturesExtractor:
                                        dt - self._interval * i].mean()
                 for i in range(self._input_time_intervals_number)]
 
-    def extract_features(self, temperature_sensor_data, timestamps):
+    def extract(self, temperature_sensor_data, timestamps):
         if self._nn_model is None:
             raise exceptions.NotReadyModelError('temperatures NN-encoded features model wasn\'t loaded or trained')
         nn_input = pd.DataFrame(
@@ -114,13 +114,14 @@ class FeaturesExtractor:
 
     @staticmethod
     def _calculate_duration(timestamps):
-        return pd.DataFrame({'duration' : (timestamps - timestamps[0]).total_seconds().values / 3600.},
+        return pd.DataFrame({'duration': (timestamps - timestamps[0]).total_seconds().values / 3600.},
                             index=timestamps)
 
     def _collect_interval_mean_temperatures(self, temperature_sensors_data, timestamps):
         return pd.DataFrame(
             timestamps.map(lambda dt: temperature_sensors_data.loc[dt - self._interval: dt].mean().tolist()).tolist(),
-            index=timestamps
+            index=timestamps,
+            columns=temperature_sensors_data.columns
         )
 
     def _extract_above_temperature_delta_features(self, interval_mean_temperatures):
@@ -149,20 +150,21 @@ class FeaturesExtractor:
         return pd.DataFrame([self._plate.get_angle_array(self._sensor_id)] * len(timestamps),
                             index=timestamps, columns=FeaturesExtractor.ANGLES_FEATURES_NAME)
 
-    def extract_features(self, temperature_sensors_data, chemical_analysis_data):
-        timestamps = chemical_analysis_data.dropna(how='all').index
+    def extract(self, temperature_sensors_data, chemical_analysis_data):
+        timestamps = chemical_analysis_data.index
         interval_mean_temperatures = self._collect_interval_mean_temperatures(temperature_sensors_data, timestamps)
         above_temperature_delta = self._extract_above_temperature_delta_features(interval_mean_temperatures)
         below_temperature_delta = self._extract_below_temperature_delta_features(interval_mean_temperatures)
         angles = self._extract_angle_features(timestamps)
         if self._temperatures_features_extractor is None:
             raise exceptions.MissingComponentsWarning('no custom temperatures features extraction realized')
-        temperatures_features = self._temperatures_features_extractor.extract_features(
-            temperature_sensors_data[self._sensor_id]
+        temperatures_features = self._temperatures_features_extractor.extract(
+            temperature_sensors_data[self._sensor_id],
+            timestamps
         )
         if self._analysis_features_extractor is None:
             raise exceptions.MissingComponentsWarning('no custom chemical analysis features extraction realized')
-        analysis_features = self._analysis_features_extractor.extract_features(chemical_analysis_data.loc[timestamps])
+        analysis_features = self._analysis_features_extractor.extract(chemical_analysis_data.loc[timestamps])
         duration = self._calculate_duration(timestamps)
         return pd.concat([
             chemical_analysis_data.loc[timestamps],
