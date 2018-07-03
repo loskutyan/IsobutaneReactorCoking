@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 
@@ -162,14 +164,19 @@ class FeaturesExtractor:
         duration = calculate_duration(timestamps)
 
         if self._temperatures_features_extractor is None:
-            raise exceptions.MissingComponentsWarning('no custom temperatures features extraction realized')
-        temperatures_features = self._temperatures_features_extractor.extract(
-            temperature_sensors_data[sensor_id],
-            timestamps
-        )
+            temperatures_features = pd.DataFrame(None, index=timestamps)
+            warnings.warn('no custom temperatures features extraction realized', exceptions.MissingComponentsWarning)
+        else:
+            temperatures_features = self._temperatures_features_extractor.extract(
+                temperature_sensors_data[sensor_id],
+                timestamps
+            )
         if self._analysis_features_extractor is None:
-            raise exceptions.MissingComponentsWarning('no custom chemical analysis features extraction realized')
-        analysis_features = self._analysis_features_extractor.extract(chemical_analysis_data.loc[timestamps])
+            analysis_features = pd.DataFrame(None, index=timestamps)
+            warnings.warn('no custom chemical analysis features extraction realized',
+                          exceptions.MissingComponentsWarning)
+        else:
+            analysis_features = self._analysis_features_extractor.extract(chemical_analysis_data.loc[timestamps])
         return pd.concat([
             chemical_analysis_data.loc[timestamps],
             analysis_features,

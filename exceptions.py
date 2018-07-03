@@ -4,7 +4,7 @@ __all__ = ['NotReadyModelError', 'MissingComponentsWarning']
 class MissingComponentsWarning(Warning):
     """Warning class to raise if some important but unnecessary components not set
 
-    This class inherits from Warning.
+    This class inherits from UserWarning.
     """
 
 
