@@ -18,9 +18,9 @@ def collect_interval_mean_temperatures(temperature_sensors_data, interval, times
     )
 
 
-def extract_above_temperature_delta_features(interval_mean_temperatures, sensor_id, plate_name, reactor):
-    above_plate_name = reactor.get_plate_name_above(plate_name)
-    if above_plate_name == plate_name:
+def extract_above_temperature_delta_features(interval_mean_temperatures, sensor_id, sensor_plate_name, reactor):
+    above_plate_name = reactor.get_plate_name_above(sensor_plate_name)
+    if above_plate_name == sensor_plate_name:
         return pd.Series(np.zeros(interval_mean_temperatures.shape[0]),
                          index=interval_mean_temperatures.index,
                          name=FeaturesExtractor.ABOVE_TEMP_DELTA_FEATURE_NAME)
@@ -30,9 +30,9 @@ def extract_above_temperature_delta_features(interval_mean_temperatures, sensor_
         .rename(FeaturesExtractor.ABOVE_TEMP_DELTA_FEATURE_NAME)
 
 
-def extract_below_temperature_delta_features(interval_mean_temperatures, sensor_id, plate_name, reactor):
-    below_plate_name = reactor.get_plate_name_below(plate_name)
-    if below_plate_name == plate_name:
+def extract_below_temperature_delta_features(interval_mean_temperatures, sensor_id, sensor_plate_name, reactor):
+    below_plate_name = reactor.get_plate_name_below(sensor_plate_name)
+    if below_plate_name == sensor_plate_name:
         return pd.Series(np.zeros(interval_mean_temperatures.shape[0]),
                          index=interval_mean_temperatures.index,
                          name=FeaturesExtractor.BELOW_TEMP_DELTA_FEATURE_NAME)
