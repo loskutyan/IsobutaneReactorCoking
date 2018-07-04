@@ -29,7 +29,7 @@ def calculate_above_plate_temperature_delta(interval_mean_temperatures, sensor_i
         return pd.Series(np.zeros(interval_mean_temperatures.shape[0]),
                          index=interval_mean_temperatures.index,
                          name=ABOVE_PLATE_TEMPERATURE_DELTA_NAME)
-    above_plate_sensors = reactor.get_plate(above_plate_name).get_sensors_list()
+    above_plate_sensors = reactor.get_plate(above_plate_name).get_sensor_list()
     above_plate_mean_temperatures = interval_mean_temperatures[above_plate_sensors].mean(axis=1)
     return (above_plate_mean_temperatures - interval_mean_temperatures[sensor_id]) \
         .rename(ABOVE_PLATE_TEMPERATURE_DELTA_NAME)
@@ -41,7 +41,7 @@ def calculate_below_plate_temperature_delta(interval_mean_temperatures, sensor_i
         return pd.Series(np.zeros(interval_mean_temperatures.shape[0]),
                          index=interval_mean_temperatures.index,
                          name=BELOW_PLATE_TEMPERATURE_DELTA_NAME)
-    below_plate_sensors = reactor.get_plate(below_plate_name).get_sensors_list()
+    below_plate_sensors = reactor.get_plate(below_plate_name).get_sensor_list()
     below_plate_mean_temperatures = interval_mean_temperatures[below_plate_sensors].mean(axis=1)
     return (below_plate_mean_temperatures - interval_mean_temperatures[sensor_id]) \
         .rename(BELOW_PLATE_TEMPERATURE_DELTA_NAME)

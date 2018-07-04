@@ -4,9 +4,9 @@ import numpy as np
 class ReactorPlate:
     ANGLES_ORDER = [0, 90, 180, 270]
 
-    def __init__(self, sensors_config, name):
-        self._sensors_config = sensors_config
+    def __init__(self, name, sensors_config):
         self._name = name
+        self._sensors_config = sensors_config
 
     def get_angle_array(self, sensor_id):
         if sensor_id is None:
@@ -17,22 +17,24 @@ class ReactorPlate:
         result[self._sensors_config.index(sensor_id)] = 1
         return result
 
-    def get_sensors_list(self):
+    def get_sensor_list(self):
         return [x for x in self._sensors_config if x is not None]
 
     def get_sensors_number(self):
         return sum([x is not None for x in self._sensors_config])
 
+    def get_name(self):
+        return self._name
+
 
 class IsobutaneReactor:
-    def __init__(self, plates_config):
-        self._plates = {k: ReactorPlate(v, k) for k, v in plates_config}
-        self._plates_order = list(list(zip(*plates_config))[0])
-        self._sensors_to_plates_dict = {}
+    def __init__(self, plate_list):
+        self._plates = {plate.get_name(): plate for plate in plate_list}
+        self._plates_order = [plate.get_name() for plate in plate_list]
 
     def find_plate_name(self, sensor_id):
         for plate_name, plate in self._plates.items():
-            if sensor_id in plate.get_sensors_list():
+            if sensor_id in plate.get_sensor_list():
                 return plate_name
         return None
 
