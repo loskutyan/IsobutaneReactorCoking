@@ -16,7 +16,7 @@ class ReactorsDao:
         for reactor_name, reactor in self._reactors_dict.items():
             if reactor.find_plate_name(sensor_id) is not None:
                 return reactor_name
-        return None
+        raise ValueError('no sensor {} in reactors found'.format(str(sensor_id)))
 
     def get_reactor(self, reactor_name):
         reactor = self._reactors_dict.get(reactor_name)

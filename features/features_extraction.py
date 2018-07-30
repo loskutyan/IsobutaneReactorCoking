@@ -91,8 +91,6 @@ class AnalysisLinearTrendsExtractor:
 
 
 class NNTemperaturesFeaturesExtractor:
-    FEATURE_NAME_PREFIX = 'Температура_'
-
     def __init__(self, period, input_time_intervals_number, output_features_number, nn_model=None):
         self._period = period
         self._input_time_intervals_number = input_time_intervals_number
@@ -135,7 +133,7 @@ class NNTemperaturesFeaturesExtractor:
             .values
         nn_output = pd.DataFrame(self._nn_model.predict(nn_input_normalized),
                                  index=timestamps,
-                                 columns=[NNTemperaturesFeaturesExtractor.FEATURE_NAME_PREFIX + str(i)
+                                 columns=['nn_temperature_{}'.format(str(i))
                                           for i in range(self._output_features_number)])
         return nn_output
 
@@ -148,8 +146,6 @@ class FeaturesExtractor:
     def extract(self, temperature_sensors_data, chemical_analysis_data, sensor_id, reactor,
                 mean_temperatures_interval=constants.TWELVE_HOURS_DELTA):
         plate_name = reactor.find_plate_name(sensor_id)
-        if plate_name is None:
-            raise ValueError('No plate with sensor {} in reactor found'.format(str(sensor_id)))
         plate = reactor.get_plate(plate_name)
 
         timestamps = chemical_analysis_data.index

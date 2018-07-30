@@ -1,3 +1,5 @@
+from functools import reduce
+
 import numpy as np
 
 
@@ -31,12 +33,13 @@ class IsobutaneReactor:
     def __init__(self, plate_list):
         self._plates = {plate.get_name(): plate for plate in plate_list}
         self._plates_order = [plate.get_name() for plate in plate_list]
+        self._sensors_number = sum([plate.get_sensor_number() for plate in self._plates])
 
     def find_plate_name(self, sensor_id):
         for plate_name, plate in self._plates.items():
             if sensor_id in plate.get_sensor_list():
                 return plate_name
-        return None
+        raise ValueError('No plate with sensor {} in reactor found'.format(str(sensor_id)))
 
     def get_plate(self, plate_name):
         plate = self._plates.get(plate_name)
@@ -55,3 +58,12 @@ class IsobutaneReactor:
             raise ValueError('no plate with name {}'.format(str(plate_name)))
         plate_idx = self._plates_order.index(plate_name)
         return self._plates_order[plate_idx + 1] if plate_idx + 1 < len(self._plates_order) else None
+
+    def get_sensor_list(self):
+        return reduce(lambda x, y: x + y, [plate.get_sensor_list() for plate in self._plates])
+
+    def get_sensors_number(self):
+        return self._sensors_number
+
+    def exclude_sensors(self, sensor_list):
+        return self
