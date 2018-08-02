@@ -20,11 +20,14 @@ class ReactorsDao:
                 return reactor_name
         raise ValueError('no sensor {} in reactors found'.format(str(sensor_id)))
 
-    def get_reactor(self, reactor_name):
+    def find(self, reactor_name):
         reactor = self._reactors_dict.get(reactor_name)
         if reactor is None:
             raise ValueError('no reactor with name {}'.format(str(reactor_name)))
         return reactor
+
+    def find_all(self):
+        return self._reactors_dict.values()
 
 
 class ModelsDao:
@@ -43,7 +46,7 @@ class ModelsDao:
                 self._models[reactor_name] = {name: pickle.load(open(os.path.join(reactor_path, name), 'rb'))
                                               for name in pickled_models_names}
 
-        def get_model_by_name(self, reactor_name, model_name):
+        def find(self, reactor_name, model_name):
             if reactor_name in self._models:
                 return self._models[reactor_name].get(model_name)
             return None

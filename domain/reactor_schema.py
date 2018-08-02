@@ -69,5 +69,8 @@ class IsobutaneReactor:
     def get_sensors_number(self):
         return self._sensors_number
 
+    def get_all_plates(self):
+        return self._plates.values()
+
     def exclude_sensors(self, sensor_list):
         return self

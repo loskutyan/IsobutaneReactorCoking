@@ -15,6 +15,14 @@ class MissingTags(KeyError):
     """
 
 
+class MissingModel(KeyError):
+    """Exception class to raise if no model for sensor defined
+    and no common model for its plate and reactor found
+
+    This class inherits from KeyError.
+    """
+
+
 class NotReadyModelError(ValueError, AttributeError):
     """Exception class to raise if model was not loaded or trained
 
