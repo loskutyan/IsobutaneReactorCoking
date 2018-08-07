@@ -32,10 +32,11 @@ class ModelsLoader:
 
 
 class ModelRepository:
-    def __init__(self, reactors, models_loader):
+    def __init__(self, reactors, settings):
         self._features_models = {}
         self._prediction_models = {}
         self._sensors_index = {}
+        models_loader = ModelsLoader(settings)
         for reactor in reactors:
             reactor_name = reactor.get_name()
             self._sensors_index[reactor_name] = self._build_sensors_index(reactor)
