@@ -52,18 +52,18 @@ def extract_angle_features(timestamps, sensor_id, plate):
                         columns=['angle_{}'.format(str(x)) for x in plate.ANGLES_ORDER])
 
 
+def calculate_linear_trend(values_series):
+    x = (values_series.index - values_series.index[0]).total_seconds()
+    x_matrix = np.vstack([x, np.ones(len(x))]).T
+    y = values_series.values
+    coef, intercept = np.linalg.lstsq(x_matrix, y, None)[0]
+    return coef, intercept
+
+
 class AnalysisLinearTrendsExtractor:
     def __init__(self, period, tags_to_process):
         self._period = period
         self._tags_to_process = tags_to_process
-
-    @staticmethod
-    def calculate_linear_trend(values_series):
-        x = (values_series.index - values_series.index[0]).total_seconds()
-        x_matrix = np.vstack([x, np.ones(len(x))]).T
-        y = values_series.values
-        coef, intercept = np.linalg.lstsq(x_matrix, y, None)[0]
-        return coef, intercept
 
     def extract(self, chemical_analysis_data):
         missing_tags = [tag for tag in self._tags_to_process if tag not in chemical_analysis_data.columns]
@@ -79,7 +79,7 @@ class AnalysisLinearTrendsExtractor:
             for i in sorted(values_series.index):
                 if values_series.loc[i] is not None and str(values_series.loc[i]) != 'nan':
                     period_values_series = values_series.loc[i - self._period: i]
-                    coefs_and_intercepts.append(self.calculate_linear_trend(period_values_series))
+                    coefs_and_intercepts.append(calculate_linear_trend(period_values_series))
                     index.append(i)
             coefs, intercepts = zip(*coefs_and_intercepts)
             tag_result = pd.DataFrame({

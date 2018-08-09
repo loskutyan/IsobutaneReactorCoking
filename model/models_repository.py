@@ -4,12 +4,12 @@ import pickle
 import exceptions
 
 
-class ModelsLoader:
+class ModelLoader:
     def __init__(self, settings):
         self._features_models_dir = settings.get_features_models()['dir']
         self._prediction_models_dir = settings.get_prediction_models()['dir']
 
-    class _SpecificModelsLoader:
+    class _SpecificModelLoader:
         def __init__(self, path):
             reactor_names = os.listdir(path)
             self._models = {}
@@ -25,10 +25,10 @@ class ModelsLoader:
             return None
 
     def get_features_models_loader(self):
-        return ModelsLoader._SpecificModelsLoader(self._features_models_dir)
+        return ModelLoader._SpecificModelLoader(self._features_models_dir)
 
     def get_prediction_models_loader(self):
-        return ModelsLoader._SpecificModelsLoader(self._prediction_models_dir)
+        return ModelLoader._SpecificModelLoader(self._prediction_models_dir)
 
 
 class ModelRepository:
@@ -36,7 +36,7 @@ class ModelRepository:
         self._features_models = {}
         self._prediction_models = {}
         self._sensors_index = {}
-        models_loader = ModelsLoader(settings)
+        models_loader = ModelLoader(settings)
         for reactor in reactors:
             reactor_name = reactor.get_name()
             self._sensors_index[reactor_name] = self._build_sensors_index(reactor)
