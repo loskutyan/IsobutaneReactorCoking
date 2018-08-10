@@ -27,3 +27,39 @@ class ReactorsDao:
 
     def find_all(self):
         return self._reactors_dict.values()
+
+
+class ChemicalAnalysisTagsDao:
+    def __init__(self):
+        path = os.path.abspath(os.path.dirname(__file__))
+        path = os.path.join(path, "../resources/dict/chemical_analysis_tags.json")
+        self._tags_dict = json.load(path)
+
+    def find_all(self):
+        return dict(self._tags_dict)
+
+
+class TemperaturesTagsDao:
+    def __init__(self):
+        path = os.path.abspath(os.path.dirname(__file__))
+        path = os.path.join(path, "../resources/dict/temperatures_tags.json")
+        self._tags_dict = json.load(path)
+
+    def find_all(self):
+        return dict(self._tags_dict)
+
+
+class Dao:
+    def __init__(self):
+        self._reactors_dao = ReactorsDao()
+        self._chemical_analysis_tags_dao = ChemicalAnalysisTagsDao()
+        self._temperatures_tags_dao = TemperaturesTagsDao()
+
+    def get_reactors_dao(self):
+        return self._reactors_dao
+
+    def get_chemical_analysis_tags_dao(self):
+        return self._chemical_analysis_tags_dao
+
+    def get_temperatures_tags_dao(self):
+        return self._temperatures_tags_dao
