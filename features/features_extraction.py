@@ -23,37 +23,37 @@ def collect_interval_mean_temperatures(temperature_sensors_data, interval, times
     )
 
 
-def calculate_above_plate_temperature_delta(interval_mean_temperatures, sensor_id, sensor_plate_name, reactor):
-    above_plate_name = reactor.get_plate_name_above(sensor_plate_name)
-    if above_plate_name == sensor_plate_name:
+def calculate_above_plate_temperature_delta(interval_mean_temperatures, sensor_id, sensor_plate_number, reactor):
+    above_plate_number = reactor.get_plate_number_above(sensor_plate_number)
+    if above_plate_number is None:
         return pd.Series(np.zeros(interval_mean_temperatures.shape[0]),
                          index=interval_mean_temperatures.index,
                          name=ABOVE_PLATE_TEMPERATURE_DELTA_NAME)
-    above_plate_sensors = reactor.get_plate(above_plate_name).get_sensor_list()
+    above_plate_sensors = reactor.get_plate(above_plate_number).get_sensor_list()
     above_plate_mean_temperatures = interval_mean_temperatures[above_plate_sensors].mean(axis=1)
     return (above_plate_mean_temperatures - interval_mean_temperatures[sensor_id]) \
         .rename(ABOVE_PLATE_TEMPERATURE_DELTA_NAME)
 
 
-def calculate_below_plate_temperature_delta(interval_mean_temperatures, sensor_id, sensor_plate_name, reactor):
-    below_plate_name = reactor.get_plate_name_below(sensor_plate_name)
-    if below_plate_name == sensor_plate_name:
+def calculate_below_plate_temperature_delta(interval_mean_temperatures, sensor_id, sensor_plate_number, reactor):
+    below_plate_number = reactor.get_plate_number_below(sensor_plate_number)
+    if below_plate_number is None:
         return pd.Series(np.zeros(interval_mean_temperatures.shape[0]),
                          index=interval_mean_temperatures.index,
                          name=BELOW_PLATE_TEMPERATURE_DELTA_NAME)
-    below_plate_sensors = reactor.get_plate(below_plate_name).get_sensor_list()
+    below_plate_sensors = reactor.get_plate(below_plate_number).get_sensor_list()
     below_plate_mean_temperatures = interval_mean_temperatures[below_plate_sensors].mean(axis=1)
     return (below_plate_mean_temperatures - interval_mean_temperatures[sensor_id]) \
         .rename(BELOW_PLATE_TEMPERATURE_DELTA_NAME)
 
 
-def extract_angle_features(timestamps, sensor_id, plate):
+def extract_sensor_position_features(timestamps, sensor_id, plate):
     return pd.DataFrame([plate.get_angle_array(sensor_id)] * len(timestamps), index=timestamps,
-                        columns=['angle_{}'.format(str(x)) for x in plate.ANGLES_ORDER])
+                        columns=['angle_{}'.format(str(x)) for x in range(plate.get_positions_number())])
 
 
 def calculate_linear_trend(values_series):
-    x = (values_series.index - values_series.index[0]).total_seconds()
+    x = (values_series.index - values_series.index[0]).total_seconds() / 3600
     x_matrix = np.vstack([x, np.ones(len(x))]).T
     y = values_series.values
     coef, intercept = np.linalg.lstsq(x_matrix, y, None)[0]
@@ -145,17 +145,17 @@ class FeaturesExtractor:
 
     def extract(self, temperature_sensors_data, chemical_analysis_data, sensor_id, reactor,
                 mean_temperatures_interval=constants.TWELVE_HOURS_DELTA):
-        plate_name = reactor.find_plate_name(sensor_id)
-        plate = reactor.get_plate(plate_name)
+        plate_number = reactor.find_plate_number(sensor_id)
+        plate = reactor.get_plate(plate_number)
 
         timestamps = chemical_analysis_data.index
         interval_mean_temperatures = collect_interval_mean_temperatures(temperature_sensors_data,
                                                                         mean_temperatures_interval, timestamps)
         above_temperature_delta = calculate_above_plate_temperature_delta(interval_mean_temperatures,
-                                                                          sensor_id, plate_name, reactor)
+                                                                          sensor_id, plate_number, reactor)
         below_temperature_delta = calculate_below_plate_temperature_delta(interval_mean_temperatures,
-                                                                          sensor_id, plate_name, reactor)
-        angles = extract_angle_features(timestamps, sensor_id, plate)
+                                                                          sensor_id, plate_number, reactor)
+        position = extract_sensor_position_features(timestamps, sensor_id, plate)
         duration = calculate_duration(timestamps)
 
         if self._temperatures_features_extractor is None:
@@ -179,5 +179,5 @@ class FeaturesExtractor:
             duration,
             above_temperature_delta,
             below_temperature_delta,
-            angles
+            position
         ], axis=1)

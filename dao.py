@@ -7,15 +7,18 @@ from domain.reactor_schema import IsobutaneReactor, ReactorPlate
 class ReactorsDao:
     def __init__(self):
         path = os.path.abspath(os.path.dirname(__file__))
-        path = os.path.join(path, "../resources/dict/reactors.json")
-        self._reactors_dict = {reactor_name: IsobutaneReactor(reactor_name,
-                                                              [ReactorPlate(plate_name, sensors_config)
-                                                               for plate_name, sensors_config in plates_config])
-                               for reactor_name, plates_config in json.load(path).items()}
+        path = os.path.join(path, "./resources/dict/reactors.json")
+        with open(path, 'r') as f:
+            self._reactors_dict = {reactor_name: IsobutaneReactor(reactor_name,
+                                                                  {plate_name: ReactorPlate(plate_name, sensors_config)
+                                                                   for plate_name, sensors_config in
+                                                                   plates_configs.items()},
+                                                                  plates_numbers)
+                                   for reactor_name, [plates_numbers, plates_configs] in json.load(f).items()}
 
     def find_reactor_name(self, sensor_id):
         for reactor_name, reactor in self._reactors_dict.items():
-            if reactor.find_plate_name(sensor_id) is not None:
+            if reactor.find_plate_number(sensor_id) is not None:
                 return reactor_name
         raise ValueError('no sensor {} in reactors found'.format(str(sensor_id)))
 
@@ -32,8 +35,9 @@ class ReactorsDao:
 class ChemicalAnalysisTagsDao:
     def __init__(self):
         path = os.path.abspath(os.path.dirname(__file__))
-        path = os.path.join(path, "../resources/dict/chemical_analysis_tags.json")
-        self._tags_dict = json.load(path)
+        path = os.path.join(path, "./resources/dict/chemical_analysis_tags.json")
+        with open(path, 'r') as f:
+            self._tags_dict = json.load(f)
 
     def find_all(self):
         return dict(self._tags_dict)
@@ -42,8 +46,9 @@ class ChemicalAnalysisTagsDao:
 class TemperaturesTagsDao:
     def __init__(self):
         path = os.path.abspath(os.path.dirname(__file__))
-        path = os.path.join(path, "../resources/dict/temperatures_tags.json")
-        self._tags_dict = json.load(path)
+        path = os.path.join(path, "./resources/dict/temperature_sensors_tags.json")
+        with open(path, 'r') as f:
+            self._tags_dict = json.load(f)
 
     def find_all(self):
         return dict(self._tags_dict)

@@ -15,3 +15,7 @@ class DataPreprocessor:
 
     def process_temperatures(self, reactor_name, data):
         return DataPreprocessor._collect_tags_data(reactor_name, self._temperatures_tags, data, 'temperatures')
+
+
+class DataPostprocessor:
+    pass
