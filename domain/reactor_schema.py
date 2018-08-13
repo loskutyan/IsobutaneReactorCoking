@@ -69,7 +69,7 @@ class IsobutaneReactor:
         return self._name
 
     def get_sensor_list(self):
-        return reduce(lambda x, y: x + y, [plate.get_sensor_list() for plate in self._plates])
+        return reduce(lambda x, y: x + y, [plate.get_sensor_list() for plate in self._plates.values()])
 
     def get_all_plates(self):
         return self._plates.values()

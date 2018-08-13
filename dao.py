@@ -39,7 +39,7 @@ class ChemicalAnalysisTagsDao:
         with open(path, 'r') as f:
             self._tags_dict = json.load(f)
 
-    def find_all(self):
+    def findall(self):
         return dict(self._tags_dict)
 
 
@@ -50,7 +50,7 @@ class TemperaturesTagsDao:
         with open(path, 'r') as f:
             self._tags_dict = json.load(f)
 
-    def find_all(self):
+    def findall(self):
         return dict(self._tags_dict)
 
 
