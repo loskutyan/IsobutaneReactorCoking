@@ -18,4 +18,14 @@ class DataPreprocessor:
 
 
 class DataPostprocessor:
-    pass
+    def __init__(self, reactor):
+        self._reactor = reactor
+
+    def process_predictions(self, data):
+        new_columns = {}
+        for col in data.columns:
+            sensor_id, horizon = col.split(':')
+            plate_num = self._reactor.find_plate_number(sensor_id)
+            sensor_num = self._reactor.get_plate(plate_num).find_sensor_number(sensor_id)
+            new_columns[col] = '{}:{}:{}'.format(str(plate_num), str(sensor_num), horizon)
+        return data.rename(columns=new_columns)

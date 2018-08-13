@@ -7,15 +7,20 @@ class ReactorPlate:
     def __init__(self, name, sensors_config):
         self._name = name
         self._sensors_config = sensors_config
+        self._sensor_enumeration = {sensor_id: i + 1 for i, sensor_id in
+                                    enumerate(x for x in sensors_config if x is not None)}
 
     def get_angle_array(self, sensor_id):
-        if sensor_id is None:
-            raise ValueError('sensor id must be a string')
-        if sensor_id not in self._sensors_config:
+        if sensor_id not in self._sensor_enumeration:
             raise ValueError('no sensor with name {} on plate {}'.format(str(sensor_id), self._name))
         result = np.zeros(len(self._sensors_config), dtype='int8')
         result[len(self._sensors_config) - self._sensors_config.index(sensor_id) - 1] = 1
         return result
+
+    def find_sensor_number(self, sensor_id):
+        if sensor_id not in self._sensor_enumeration:
+            raise ValueError('no sensor with name {} on plate {}'.format(str(sensor_id), self._name))
+        return self._sensor_enumeration[sensor_id]
 
     def get_sensor_list(self):
         return [x for x in self._sensors_config if x is not None]
