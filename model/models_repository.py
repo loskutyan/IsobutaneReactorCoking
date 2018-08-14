@@ -9,20 +9,33 @@ from features.features_extraction import NNTemperaturesFeaturesExtractor
 
 
 class ModelLoader:
-    def __init__(self, settings):
-        self._keras_weights_dir = settings.get_sensor_keras_model()['dir']
+    KERAS_MODELS_ENDING = '.nn'
+    PICKLE_ENDING = '.pkl'
+
+    def __init__(self, settings, reactor_names):
+        self._reactor_names = reactor_names
+        self._keras_weights_dir = settings.get_keras_weights()['dir']
         self._features_models_dir = settings.get_features_models()['dir']
         self._prediction_models_dir = settings.get_prediction_models()['dir']
 
+    @staticmethod
+    def _filter_files_by_ending(filenames):
+        return [name for name in filenames
+                if name.endswith(ModelLoader.KERAS_MODELS_ENDING) or name.endswith(ModelLoader.PICKLE_ENDING)]
+
+    @staticmethod
+    def _remove_ending(filename):
+        return filename.replace(ModelLoader.KERAS_MODELS_ENDING, '').replace(ModelLoader.PICKLE_ENDING, '')
+
     class _SpecificModelLoader:
-        def __init__(self, path, is_keras=False):
-            reactor_names = os.listdir(path)
+        def __init__(self, path, reactor_names, is_keras=False):
+            found_reactor_names = set(os.listdir(path)).intersection(reactor_names)
             self._models = {}
-            for reactor_name in reactor_names:
+            for reactor_name in found_reactor_names:
                 reactor_path = os.path.join(path, reactor_name)
-                saved_models_names = os.listdir(reactor_path)
+                saved_models_names = ModelLoader._filter_files_by_ending(os.listdir(reactor_path))
                 self._models[reactor_name] = {
-                    name.replace('.pkl', ''): ModelLoader._SpecificModelLoader._load_saved_model(
+                    ModelLoader._remove_ending(name): ModelLoader._SpecificModelLoader._load_saved_model(
                         os.path.join(reactor_path, name),
                         is_keras
                     )
@@ -32,7 +45,7 @@ class ModelLoader:
         @staticmethod
         def _load_saved_model(path, is_keras):
             if not is_keras:
-                return pickle.load(open(path, 'rb'))
+                return pickle.load(file=open(path, 'rb'))
             return NNTemperaturesFeaturesExtractor(constants.NN_PERIOD, constants.NN_INPUT_TIME_INTERVALS_NUMBER,
                                                    constants.NN_OUTPUT_FEATURES_NUMBER, load_model(path))
 
@@ -42,13 +55,13 @@ class ModelLoader:
             return None
 
     def get_keras_models_loader(self):
-        return ModelLoader._SpecificModelLoader(self._keras_weights_dir, True)
+        return ModelLoader._SpecificModelLoader(self._keras_weights_dir, self._reactor_names, True)
 
     def get_features_models_loader(self):
-        return ModelLoader._SpecificModelLoader(self._features_models_dir)
+        return ModelLoader._SpecificModelLoader(self._features_models_dir, self._reactor_names)
 
     def get_prediction_models_loader(self):
-        return ModelLoader._SpecificModelLoader(self._prediction_models_dir)
+        return ModelLoader._SpecificModelLoader(self._prediction_models_dir, self._reactor_names)
 
 
 class ModelRepository:
@@ -57,11 +70,11 @@ class ModelRepository:
         self._features_models = {}
         self._prediction_models = {}
         self._sensors_index = {}
-        models_loader = ModelLoader(settings)
+        models_loader = ModelLoader(settings, {reactor.get_name() for reactor in reactors})
         for reactor in reactors:
             reactor_name = reactor.get_name()
             self._sensors_index[reactor_name] = self._build_sensors_index(reactor)
-            self._keras_models[reactor_name] = self._build_models_dict(models_loader.get_keras_weights_loader(),
+            self._keras_models[reactor_name] = self._build_models_dict(models_loader.get_keras_models_loader(),
                                                                        reactor)
             self._features_models[reactor_name] = self._build_models_dict(models_loader.get_features_models_loader(),
                                                                           reactor)

@@ -39,7 +39,7 @@ def main(argv):
 
     for sensor_id in sensor_list:
         nn_extractor = models_repo.get_sensor_keras_model(reactor_name_to_predict, sensor_id)
-        trends_extractor = models_repo.get_sensor_features_model(reactor_name_to_predict, sensor_id)
+        trends_extractor, = models_repo.get_sensor_features_model(reactor_name_to_predict, sensor_id)
         features_extractor = FeaturesExtractor(nn_extractor, trends_extractor)
         predictions_dict = {}
         models = models_repo.get_sensor_prediction_model(reactor_name_to_predict, sensor_id)
