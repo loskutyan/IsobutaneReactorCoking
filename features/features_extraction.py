@@ -8,8 +8,10 @@ from keras.models import Sequential
 import constants
 import exceptions
 
-ABOVE_PLATE_TEMPERATURE_DELTA_NAME = 'above_plate_temperature_delta'
-BELOW_PLATE_TEMPERATURE_DELTA_NAME = 'below_plate_temperature_delta'
+ABOVE_PLATE_TEMPERATURE_DELTA_NAME = 'delta_top'  # 'above_plate_temperature_delta'
+BELOW_PLATE_TEMPERATURE_DELTA_NAME = 'delta_bot'  # 'below_plate_temperature_delta'
+NN_TEMPERATURE_PREFIX = 'Температура_'  # 'nn_temperature_'
+POSITION_PREFIX = 'angle'  # 'position_'
 
 
 def calculate_duration(timestamps):
@@ -51,7 +53,7 @@ def calculate_below_plate_temperature_delta(interval_mean_temperatures, sensor_i
 
 def extract_sensor_position_features(timestamps, sensor_id, plate):
     return pd.DataFrame([plate.get_angle_array(sensor_id)] * len(timestamps), index=timestamps,
-                        columns=['angle_{}'.format(str(x)) for x in range(plate.get_positions_number())])
+                        columns=[POSITION_PREFIX + str(x + 1) for x in range(plate.get_positions_number())])
 
 
 def calculate_linear_trend(values_series):
@@ -143,15 +145,17 @@ class NNTemperaturesFeaturesExtractor:
             .values
         nn_output = pd.DataFrame(self._nn_model.predict(nn_input_normalized),
                                  index=timestamps,
-                                 columns=['nn_temperature_{}'.format(str(i))
-                                          for i in range(self._output_features_number)])
+                                 columns=[NN_TEMPERATURE_PREFIX + str(i) for i in range(self._output_features_number)])
         return nn_output
 
 
 class FeaturesExtractor:
-    def __init__(self, temperatures_features_extractor=None, analysis_features_extractor=None):
+    def __init__(self, temperatures_features_extractor=None, analysis_features_extractor=None, excluded_features=None):
+        if excluded_features is None:
+            excluded_features = []
         self._temperatures_features_extractor = temperatures_features_extractor
         self._analysis_features_extractor = analysis_features_extractor
+        self._excluded_features = excluded_features
 
     def extract(self, temperature_sensors_data, chemical_analysis_data, sensor_id, reactor,
                 mean_temperatures_interval=constants.TWELVE_HOURS_DELTA):
@@ -190,4 +194,4 @@ class FeaturesExtractor:
             above_temperature_delta,
             below_temperature_delta,
             position
-        ], axis=1)
+        ], axis=1).drop(self._excluded_features, axis=1)

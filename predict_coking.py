@@ -37,16 +37,34 @@ def main(argv):
     chemical = preprocessor.process_analysis(reactor_name_to_predict, raw_chemical)
     predictions = pd.DataFrame()
 
+    # move to features postprocessor
+    excluded_features = ['Бутадиен-1,3, %', 'Массовая доля суммы углеводородов С5 и выше, %']
+    features_order = ['Массовая доля CrO3, %', 'Массовая доля кокса, %', 'Объёмная доля кислорода, %',
+                      'Объёмная доля СО2, %', 'Водород, %', 'Водород, %_coef', 'Водород, %_intercept', 'Азот N2, %',
+                      'Азот N2, %_coef', 'Азот N2, %_intercept', 'Окись углерода, %', 'Окись углерода, %_coef',
+                      'Окись углерода, %_intercept', 'Метан, %', 'Метан, %_coef', 'Метан, %_intercept',
+                      'Сумма этан+этилен, %', 'Сумма этан+этилен, %_coef', 'Сумма этан+этилен, %_intercept',
+                      'Двуокись углерода, %', 'Двуокись углерода, %_coef', 'Двуокись углерода, %_intercept',
+                      'Сумма углеводородов С3, %', 'Сумма углеводородов С3, %_coef',
+                      'Сумма углеводородов С3, %_intercept', 'Изобутан, %', 'Изобутан, %_coef', 'Изобутан, %_intercept',
+                      'н-Бутан, %', 'н-Бутан, %_coef', 'н-Бутан, %_intercept', 'Бутен1+изобутилен, %',
+                      'Бутен1+изобутилен, %_coef', 'Бутен1+изобутилен, %_intercept', 'Сумма бутиленов, %',
+                      'Сумма бутиленов, %_coef', 'Сумма бутиленов, %_intercept', 'Бутадиен-1,3, %_coef',
+                      'Бутадиен-1,3, %_intercept', 'Массовая доля суммы углеводородов С5 и выше, %_coef',
+                      'Массовая доля суммы углеводородов С5 и выше, %_intercept', 'Температура_0', 'Температура_1',
+                      'Температура_2', 'Температура_3', 'Температура_4', 'duration', 'delta_top', 'delta_bot', 'angle1',
+                      'angle2', 'angle3', 'angle4']
+
     for sensor_id in sensor_list:
         nn_extractor = models_repo.get_sensor_keras_model(reactor_name_to_predict, sensor_id)
         trends_extractor, = models_repo.get_sensor_features_model(reactor_name_to_predict, sensor_id)
-        features_extractor = FeaturesExtractor(nn_extractor, trends_extractor)
+        features_extractor = FeaturesExtractor(nn_extractor, trends_extractor, excluded_features)
         predictions_dict = {}
         models = models_repo.get_sensor_prediction_model(reactor_name_to_predict, sensor_id)
-        features = features_extractor.extract(temps, chemical, sensor_id, reactor)
+        features = features_extractor.extract(temps, chemical, sensor_id, reactor)[features_order]
         # maybe some features postprocessing
         for horizon, model in models:
-            predictions_dict['{}:{}'.format(sensor_id, horizon)] = model.predict(features)
+            predictions_dict['{}:{}'.format(sensor_id, horizon)] = model.predict_proba(features)[:, 1]
 
         predictions = predictions.merge(pd.DataFrame(predictions_dict, index=features.index),
                                         left_index=True, right_index=True, how='outer')

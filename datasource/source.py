@@ -32,19 +32,6 @@ class SQLSource:
                                                       params['hostname'], params['database'])
         self._engine = sqlalchemy.create_engine(connection_config, poolclass=NullPool)
         self._table_sizes = None
-        self._update_table_sizes()
-
-    def _update_table_sizes(self):
-        connection = self._engine.connect()
-        query = 'SELECT table_name, table_rows FROM INFORMATION_SCHEMA.TABLES ' \
-                'WHERE TABLE_SCHEMA = \'{}\';'.format(self._db_name)
-        self._table_sizes = pd.read_sql(query, connection, index_col='TABLE_NAME')['TABLE_ROWS'].to_dict()
-        connection.close()
-
-    def is_empty(self, table):
-        if table in self._table_sizes:
-            return self._table_sizes[table] == 0
-        raise ValueError('no table {} in database {}'.format(table, self._db_name))
 
     def get_data_since(self, table, datetime=None, allow_equality=True):
         query = 'SELECT * FROM {}'.format(table)
@@ -59,10 +46,10 @@ class SQLSource:
         return result
 
     def find_last_datetime(self, table):
-        if self.is_empty(table):
-            return constants.MIN_DATETIME
         query = 'SELECT MAX({}) from {};'.format(self._datetime_col, table)
-        return self._engine.execute(query).fetchone()[0]
+        result = self._engine.execute(query).fetchone()[0]
+        if result is None:
+            return constants.MIN_DATETIME
 
     def write_new_data(self, table, data):
         connection = self._engine.connect()
