@@ -2,6 +2,8 @@ import warnings
 
 import numpy as np
 import pandas as pd
+from keras.layers import Dense
+from keras.models import Sequential
 
 import constants
 import exceptions
@@ -91,27 +93,35 @@ class AnalysisLinearTrendsExtractor:
 
 
 class NNTemperaturesFeaturesExtractor:
-    def __init__(self, period, input_time_intervals_number, output_features_number, nn_model=None):
+    def __init__(self, period, input_time_intervals_number, output_features_number, nn_weights):
         self._period = period
         self._input_time_intervals_number = input_time_intervals_number
         self._output_features_number = output_features_number
         self._interval = period / input_time_intervals_number
         if self._interval <= constants.ONE_SECOND_DELTA:
             raise ValueError('temperatures interval must be longer than one second')
-        self._nn_model = nn_model
-        if nn_model is not None:
-            self._validate_model_parameters()
+        self._nn_weights = nn_weights
+        self._validate_weights()
+        self._nn_model = None
 
-    def _validate_model_parameters(self):
-        if self._input_time_intervals_number != self._nn_model.input_shape[1]:
+    def _validate_weights(self):
+        if self._input_time_intervals_number != self._nn_weights.input_shape[1]:
             raise ValueError('number of intervals is {} but must be equal\
              to neural network input shape ({})'.format(self._input_time_intervals_number,
-                                                        self._nn_model.input_shape[1]))
-        if self._output_features_number != self._nn_model.get_layer(index=0).output_shape[1]:
+                                                        self._nn_weights.input_shape[1]))
+        if self._output_features_number != self._nn_weights.get_layer(index=0).output_shape[1]:
             raise ValueError('number of intervals is {} but must be equal\
              to neural network input shape ({})'.format(self._output_features_number,
-                                                        self._nn_model.get_layer(index=0).output_shape[1]))
+                                                        self._nn_weights.get_layer(index=0).output_shape[1]))
         return True
+
+    def _compile_nn_model(self):
+        nn_model = Sequential()
+        nn_model.add(Dense(self._output_features_number, input_shape=(self._input_time_intervals_number,),
+                           activation='linear', use_bias=True))
+        nn_model.layers[0].set_weights(self._nn_weights.layers[0].get_weights())
+        nn_model.compile(loss='mse', optimizer='sgd')
+        self._nn_model = nn_model
 
     def _calculate_features_row_for_datetime(self, temperature_sensor_data, dt):
         period_sensor_data = temperature_sensor_data.loc[dt - self._period: dt]
@@ -121,7 +131,7 @@ class NNTemperaturesFeaturesExtractor:
 
     def extract(self, temperature_sensor_data, timestamps):
         if self._nn_model is None:
-            raise exceptions.NotReadyModelError('temperatures NN-encoded features model wasn\'t loaded or trained')
+            self._compile_nn_model()
         nn_input = pd.DataFrame(
             timestamps.map(lambda dt: self._calculate_features_row_for_datetime(temperature_sensor_data,
                                                                                 dt)).tolist(),

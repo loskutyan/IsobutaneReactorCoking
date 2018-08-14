@@ -1,4 +1,4 @@
-__all__ = ['MissingComponentsWarning', 'MissingTags', 'NotReadyModelError']
+__all__ = ['MissingComponentsWarning', 'MissingTags', 'MissingModel','NotReadyModelError']
 
 
 class MissingComponentsWarning(UserWarning):

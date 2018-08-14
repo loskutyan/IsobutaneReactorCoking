@@ -1,13 +1,12 @@
 import sys
-from datetime import timedelta
 
 import pandas as pd
 
 import constants
 from dao import Dao
 from data_processing import DataPreprocessor, DataPostprocessor
-from features.features_extraction import FeaturesExtractor
 from datasource.data_handling import InputDataHandler, OutputDataHandler
+from features.features_extraction import FeaturesExtractor
 from model.models_repository import ModelRepository
 from settings import Settings
 
@@ -39,8 +38,9 @@ def main(argv):
     predictions = pd.DataFrame()
 
     for sensor_id in sensor_list:
-        nn_model, trends_model = models_repo.get_sensor_features_model(reactor_name_to_predict, sensor_id)
-        features_extractor = FeaturesExtractor(nn_model, trends_model)
+        nn_extractor = models_repo.get_sensor_keras_model(reactor_name_to_predict, sensor_id)
+        trends_extractor = models_repo.get_sensor_features_model(reactor_name_to_predict, sensor_id)
+        features_extractor = FeaturesExtractor(nn_extractor, trends_extractor)
         predictions_dict = {}
         models = models_repo.get_sensor_prediction_model(reactor_name_to_predict, sensor_id)
         features = features_extractor.extract(temps, chemical, sensor_id, reactor)
