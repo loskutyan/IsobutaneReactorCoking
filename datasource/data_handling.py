@@ -81,19 +81,33 @@ class OutputDataHandler:
         plates_columns = defaultdict(list)
         for col in raw_temperatures.columns:
             plates_columns[int(col.split(':')[0])].append(col)
-        plates = sorted(plates_columns.keys())
-        if len(plates) < 2:
+        plates_numbers = sorted(plates_columns.keys())
+        if len(plates_numbers) < 2:
             return pd.DataFrame()
         rows_number = raw_temperatures.shape[0]
         diffs = []
-        for i in range(len(plates) - 1):
-            plate_below, plate_above = plates[i], plates[i + 1]
-            plate_below_mean = raw_temperatures[plates_columns[plate_below]].mean(axis=1)
-            plate_above_mean = raw_temperatures[plates_columns[plate_above]].mean(axis=1)
-            diffs.append(pd.DataFrame({'Решетки': ['{} - {}'.format(plate_above, plate_below)] * rows_number,
+        for i in range(len(plates_numbers) - 1):
+            plate_below_num, plate_above_num = plates_numbers[i], plates_numbers[i + 1]
+            plate_below_mean = raw_temperatures[plates_columns[plate_below_num]].mean(axis=1)
+            plate_above_mean = raw_temperatures[plates_columns[plate_above_num]].mean(axis=1)
+            diffs.append(pd.DataFrame({'Решетки': ['{} - {}'.format(plate_above_num, plate_below_num)] * rows_number,
                                        'Разность температур': plate_above_mean - plate_below_mean},
                                       index=raw_temperatures.index))
         return pd.concat(diffs, sort=False)
+
+    @staticmethod
+    def _build_temperatures_std(raw_temperatures):
+        plates_columns = defaultdict(list)
+        for col in raw_temperatures.columns:
+            plates_columns[int(col.split(':')[0])].append(col)
+        rows_number = raw_temperatures.shape[0]
+        stds = []
+        for plate_num, plate_columns in plates_columns.items():
+            plate_std = raw_temperatures[plate_columns].std(axis=1)
+            stds.append(pd.DataFrame({'Решетка': [int(plate_num)] * rows_number,
+                                      'Стандартное отклонение': plate_std},
+                                     index=raw_temperatures.index))
+        return pd.concat(stds, sort=False)
 
     def update_predictions_and_statistics(self, predictions, temperatures):
         self._last_prediction_datetime = self.find_last_datetime()
@@ -111,4 +125,6 @@ class OutputDataHandler:
         self._source.write_new_data(OutputDataHandler.TABLE_NAMES['temperatures_diff'],
                                     OutputDataHandler._build_temperatures_diff(filtered_temperatures))
 
+        self._source.write_new_data(OutputDataHandler.TABLE_NAMES['temperatures_std'],
+                                    OutputDataHandler._build_temperatures_std(filtered_temperatures))
         return
