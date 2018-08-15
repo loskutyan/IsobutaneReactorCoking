@@ -21,17 +21,24 @@ class SQLSource:
 
     def __init__(self, params, datetime_col):
         self._db_type = params['db_type']
-        self._db_name = params['database']
-        self._datetime_col = datetime_col
         if self._db_type not in SQLSource.DBAPI_DICT:
             raise ValueError('database type {} is not provided\nUse one of the following types: {}'.format(
                 self._db_type, str(list(SQLSource.DBAPI_DICT.keys()))))
-        dbapi = SQLSource.DBAPI_DICT[self._db_type]
-        prefix = '+'.join([self._db_type, dbapi]) if len(dbapi) > 0 else self._db_type
-        connection_config = '{}://{}:{}@{}/{}'.format(prefix, params['username'], params['password'],
-                                                      params['hostname'], params['database'])
-        self._engine = sqlalchemy.create_engine(connection_config, poolclass=NullPool)
-        self._table_sizes = None
+
+        self._db_name = params['database']
+        self._datetime_col = datetime_col
+
+        engine_config = SQLSource._build_engine_config(params['db_type'], params['username'], params['password'],
+                                                       params['hostname'], params['port'], params['database'])
+        self._engine = sqlalchemy.create_engine(engine_config, poolclass=NullPool)
+
+    @staticmethod
+    def _build_engine_config(db_type, username, password, hostname, port, db_name):
+        dbapi = SQLSource.DBAPI_DICT[db_type]
+        prefix = '+'.join([db_type, dbapi]) if dbapi else db_type
+        auth = ':'.join([username, password]) if username else None
+        address = ':'.join([hostname, port]) if port else hostname
+        return '{}://{}/{}'.format(prefix, '@'.join([auth, address]) if auth else address, db_name)
 
     def get_data_since(self, table, datetime=None, allow_equality=True):
         query = 'SELECT * FROM {}'.format(table)
