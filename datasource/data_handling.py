@@ -46,9 +46,8 @@ class OutputDataHandler:
     def __init__(self, settings):
         source_params = settings.get_output()
         self._source = SQLSource(source_params, constants.OUTPUT_DATETIME_COLUMN)
-        self._last_prediction_datetime = self.find_last_datetime()
 
-    def find_last_datetime(self):
+    def find_last_prediction_datetime(self):
         return self._source.find_last_datetime(OutputDataHandler.TABLE_NAMES['predictions'])
 
     @staticmethod
@@ -110,14 +109,14 @@ class OutputDataHandler:
         return pd.concat(stds, sort=False)
 
     def update_predictions_and_statistics(self, predictions, temperatures):
-        self._last_prediction_datetime = self.find_last_datetime()
+        last_prediction_datetime = self.find_last_prediction_datetime()
 
-        filtered_predictions = predictions.loc[predictions.index > self._last_prediction_datetime]
+        filtered_predictions = predictions.loc[predictions.index > last_prediction_datetime]
         self._source.write_new_data(OutputDataHandler.TABLE_NAMES['predictions'],
                                     OutputDataHandler._format_predictions(filtered_predictions))
 
         last_new_prediction_datetime = filtered_predictions.index.max()
-        filtered_temperatures = temperatures.loc[(temperatures.index > self._last_prediction_datetime)
+        filtered_temperatures = temperatures.loc[(temperatures.index > last_prediction_datetime)
                                                  & (temperatures.index <= last_new_prediction_datetime)]
         formatted_temperatures = OutputDataHandler._format_temperatures(filtered_temperatures)
         self._source.write_new_data(OutputDataHandler.TABLE_NAMES['temperatures'], formatted_temperatures)

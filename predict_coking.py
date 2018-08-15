@@ -1,8 +1,10 @@
 import sys
+import warnings
 
 import pandas as pd
 
 import constants
+import exceptions
 from dao import Dao
 from data_processing import DataPreprocessor, DataPostprocessor
 from datasource.data_handling import InputDataHandler, OutputDataHandler
@@ -26,13 +28,18 @@ def main(argv):
     input_data_handler = InputDataHandler(settings)
     output_data_handler = OutputDataHandler(settings)
 
-    last_output_datetime = output_data_handler.find_last_datetime()
+    last_output_datetime = output_data_handler.find_last_prediction_datetime()
     since_temperatures_datetime = None
     if last_output_datetime != constants.MIN_DATETIME:
         since_temperatures_datetime = last_output_datetime - constants.TEMPERATURES_HISTORY
 
     raw_temps = input_data_handler.get_temperatures(since_datetime=since_temperatures_datetime)
     raw_chemical = input_data_handler.get_analysis(since_datetime=last_output_datetime)
+    if raw_chemical.shape[0] == 0:
+        warnings.warn('no new data since last prediction {}'.format(str(last_output_datetime)),
+                      exceptions.NoNewDataWarning)
+        return 1
+
     temps = preprocessor.process_temperatures(reactor_name_to_predict, raw_temps)
     chemical = preprocessor.process_analysis(reactor_name_to_predict, raw_chemical)
     predictions = pd.DataFrame()
@@ -73,6 +80,7 @@ def main(argv):
     predictions_renamed = postprocessor.process_predictions(predictions)
     temps_renamed = postprocessor.process_temperatures(temps)
     output_data_handler.update_predictions_and_statistics(predictions_renamed, temps_renamed)
+    return 0
 
 
 if __name__ == '__main__':

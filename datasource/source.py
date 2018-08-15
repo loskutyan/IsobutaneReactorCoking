@@ -57,6 +57,7 @@ class SQLSource:
         result = self._engine.execute(query).fetchone()[0]
         if result is None:
             return constants.MIN_DATETIME
+        return result
 
     def write_new_data(self, table, data):
         connection = self._engine.connect()

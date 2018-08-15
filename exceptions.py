@@ -1,8 +1,15 @@
-__all__ = ['MissingComponentsWarning', 'MissingTags', 'MissingModel','NotReadyModelError']
+__all__ = ['MissingComponentsWarning', 'NoNewDataWarning', 'MissingTags', 'MissingModel', 'NotReadyModelError']
 
 
 class MissingComponentsWarning(UserWarning):
     """Custom warning to notify user if some important but unnecessary components not set
+
+    This class inherits from UserWarning.
+    """
+
+
+class NoNewDataWarning(UserWarning):
+    """Custom warning to notify user there is no new data since last prediction
 
     This class inherits from UserWarning.
     """
