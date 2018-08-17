@@ -71,7 +71,7 @@ class AnalysisLinearTrendsExtractor:
 
     def extract(self, chemical_analysis_data):
         missing_tags = [tag for tag in self._tags_to_process if tag not in chemical_analysis_data.columns]
-        if len(missing_tags) > 0:
+        if missing_tags:
             raise exceptions.MissingTags('tags: {} are missing in chemical analysis')
 
         data_to_process = chemical_analysis_data[self._tags_to_process].dropna(how='all')

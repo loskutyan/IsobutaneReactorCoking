@@ -6,8 +6,8 @@ class Settings:
         config = configparser.ConfigParser()
         config.read(path)
         reactor_params = dict(config.items('REACTOR'))
-        self._reactor_name = reactor_params['name']
         excluded_sensors = reactor_params['exclude_sensors']
+        self._reactor_name = reactor_params['name']
         self._excluded_sensors = excluded_sensors.split(',') if excluded_sensors else []
         self._input = config.items('INPUT')
         self._input_tables = config.items('INPUT TABLES')
