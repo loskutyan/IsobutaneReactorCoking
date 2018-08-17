@@ -71,7 +71,7 @@ def main(argv):
         models = models_repo.get_sensor_prediction_model(reactor_name, sensor_id)
         features = features_extractor.extract(temps, chemical, sensor_id, reactor)[features_order]
         # maybe some features postprocessing
-        for horizon, model in models:
+        for horizon, model in models.items():
             predictions_dict['{}:{}'.format(sensor_id, horizon)] = model.predict_proba(features)[:, 1]
 
         predictions = predictions.merge(pd.DataFrame(predictions_dict, index=features.index),

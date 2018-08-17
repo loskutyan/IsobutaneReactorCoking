@@ -9,6 +9,8 @@ pymysql.install_as_MySQLdb()
 
 
 class SQLSource:
+    TABLE_TO_WRITE_MAX_LENGTH = 1000
+
     DBAPI_DICT = {
         'mysql': 'mysqldb',
         'mssql': 'pymssql'
@@ -60,8 +62,16 @@ class SQLSource:
         return result
 
     def write_new_data(self, table, data):
+        if data.shape[0] == 0:
+            return
         connection = self._engine.connect()
-        if data.shape[0] > 0:
+        if data.shape[0] > SQLSource.TABLE_TO_WRITE_MAX_LENGTH:
+            chunks_number = data.shape[0] // SQLSource.TABLE_TO_WRITE_MAX_LENGTH + 1
+            for i in range(chunks_number):
+                chunk =  data[i * SQLSource.TABLE_TO_WRITE_MAX_LENGTH: (i + 1) * SQLSource.TABLE_TO_WRITE_MAX_LENGTH]
+                if chunk.shape[0] > 0:
+                    chunk.to_sql(table, connection, if_exists='append')
+        else:
             data.to_sql(table, connection, if_exists='append')
         connection.close()
         return

@@ -1,10 +1,8 @@
 import datetime
 
-import pandas as pd
-
 ONE_SECOND_DELTA = datetime.timedelta(seconds=1)
 TWELVE_HOURS_DELTA = datetime.timedelta(hours=12)
-MIN_DATETIME = pd.Timestamp.min.to_pydatetime()
+MIN_DATETIME = datetime.datetime(1900, 1, 1)
 
 TEMPERATURES_HISTORY = datetime.timedelta(days=4)
 
