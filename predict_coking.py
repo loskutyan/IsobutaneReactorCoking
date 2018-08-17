@@ -14,15 +14,16 @@ from settings import Settings
 
 
 def main(argv):
-    reactor_name_to_predict = argv[0]
-    settings_path = argv[1]
-    bad_sensors = argv[2]
+    settings_path = argv[0]
+    settings = Settings(settings_path)
+    reactor_name = settings.get_reactor_name()
+    bad_sensors = settings.get_excluded_sensors()
+
     dao = Dao()
     reactors = dao.get_reactors_dao().findall()
-    settings = Settings(settings_path)
     models_repo = ModelRepository(reactors, settings)
     preprocessor = DataPreprocessor(dao)
-    reactor = dao.get_reactors_dao().find(reactor_name_to_predict).exclude_sensors(bad_sensors)
+    reactor = dao.get_reactors_dao().find(reactor_name).exclude_sensors(bad_sensors)
     sensor_list = reactor.get_sensor_list()
 
     input_data_handler = InputDataHandler(settings)
@@ -40,8 +41,8 @@ def main(argv):
                       exceptions.NoNewDataWarning)
         return 1
 
-    temps = preprocessor.process_temperatures(reactor_name_to_predict, raw_temps)
-    chemical = preprocessor.process_analysis(reactor_name_to_predict, raw_chemical)
+    temps = preprocessor.process_temperatures(reactor_name, raw_temps)
+    chemical = preprocessor.process_analysis(reactor_name, raw_chemical)
     predictions = pd.DataFrame()
 
     # move to features postprocessor
@@ -63,11 +64,11 @@ def main(argv):
                       'angle2', 'angle3', 'angle4']
 
     for sensor_id in sensor_list:
-        nn_extractor = models_repo.get_sensor_keras_model(reactor_name_to_predict, sensor_id)
-        trends_extractor, = models_repo.get_sensor_features_model(reactor_name_to_predict, sensor_id)
+        nn_extractor = models_repo.get_sensor_keras_model(reactor_name, sensor_id)
+        trends_extractor, = models_repo.get_sensor_features_model(reactor_name, sensor_id)
         features_extractor = FeaturesExtractor(nn_extractor, trends_extractor, excluded_features)
         predictions_dict = {}
-        models = models_repo.get_sensor_prediction_model(reactor_name_to_predict, sensor_id)
+        models = models_repo.get_sensor_prediction_model(reactor_name, sensor_id)
         features = features_extractor.extract(temps, chemical, sensor_id, reactor)[features_order]
         # maybe some features postprocessing
         for horizon, model in models:

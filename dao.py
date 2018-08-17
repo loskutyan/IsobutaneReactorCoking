@@ -8,7 +8,7 @@ class ReactorsDao:
     def __init__(self):
         path = os.path.abspath(os.path.dirname(__file__))
         path = os.path.join(path, "./resources/dict/reactors.json")
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             self._reactors_dict = {reactor_name: IsobutaneReactor(reactor_name,
                                                                   {plate_name: ReactorPlate(plate_name, sensors_config)
                                                                    for plate_name, sensors_config in
@@ -28,7 +28,7 @@ class ReactorsDao:
             raise ValueError('no reactor with name {}'.format(str(reactor_name)))
         return reactor
 
-    def find_all(self):
+    def findall(self):
         return self._reactors_dict.values()
 
 
@@ -36,7 +36,7 @@ class ChemicalAnalysisTagsDao:
     def __init__(self):
         path = os.path.abspath(os.path.dirname(__file__))
         path = os.path.join(path, "./resources/dict/chemical_analysis_tags.json")
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             self._tags_dict = json.load(f)
 
     def findall(self):
@@ -47,7 +47,7 @@ class TemperaturesTagsDao:
     def __init__(self):
         path = os.path.abspath(os.path.dirname(__file__))
         path = os.path.join(path, "./resources/dict/temperature_sensors_tags.json")
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             self._tags_dict = json.load(f)
 
     def findall(self):

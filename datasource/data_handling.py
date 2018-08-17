@@ -7,48 +7,35 @@ from datasource.source import SQLSource
 
 
 class InputDataHandler:
-    TABLE_NAMES = {
-        'catalyst_analysis': 'cat',
-        'out_gas_analysis': 'out_gas',
-        'smoke_gas_analysis': 'smoke',
-        'temperatures': 'temps'
-    }
-
     def __init__(self, settings):
         source_params = settings.get_input()
         self._source = SQLSource(source_params, constants.INPUT_DATETIME_COLUMN)
+        self._table_names = settings.get_input_tables()
         self._temperatures_data = None
         self._last_temperatures_datetime = None
         self._analysis_data = None
         self._last_analysis_datetime = None
 
     def get_temperatures(self, since_datetime=None):
-        return self._source.get_data_since(InputDataHandler.TABLE_NAMES['temperatures'], since_datetime)
+        return self._source.get_data_since(self._table_names['temperatures'], since_datetime)
 
     def get_analysis(self, since_datetime=None):
         analysis_data_list = []
-        for table_type, table_name in InputDataHandler.TABLE_NAMES.items():
+        for table_type, table_name in self._table_names.items():
             if table_type == 'temperatures':
                 continue
-            analysis_data_list.append(self._source.get_data_since(InputDataHandler.TABLE_NAMES[table_type],
-                                                                  since_datetime, False))
+            analysis_data_list.append(self._source.get_data_since(self._table_names[table_type], since_datetime, False))
         return pd.concat(analysis_data_list, axis=1, sort=True, join='outer')
 
 
 class OutputDataHandler:
-    TABLE_NAMES = {
-        'predictions': 'predictions',
-        'temperatures': 'temperatures',
-        'temperatures_diff': 'temps_diff',
-        'temperatures_std': 'temps_std'
-    }
-
     def __init__(self, settings):
         source_params = settings.get_output()
+        self._table_names = settings.get_output_tables()
         self._source = SQLSource(source_params, constants.OUTPUT_DATETIME_COLUMN)
 
     def find_last_prediction_datetime(self):
-        return self._source.find_last_datetime(OutputDataHandler.TABLE_NAMES['predictions'])
+        return self._source.find_last_datetime(self._table_names['predictions'])
 
     @staticmethod
     def _format_predictions(predictions):
@@ -112,18 +99,18 @@ class OutputDataHandler:
         last_prediction_datetime = self.find_last_prediction_datetime()
 
         filtered_predictions = predictions.loc[predictions.index > last_prediction_datetime]
-        self._source.write_new_data(OutputDataHandler.TABLE_NAMES['predictions'],
+        self._source.write_new_data(self._table_names['predictions'],
                                     OutputDataHandler._format_predictions(filtered_predictions))
 
         last_new_prediction_datetime = filtered_predictions.index.max()
         filtered_temperatures = temperatures.loc[(temperatures.index > last_prediction_datetime)
                                                  & (temperatures.index <= last_new_prediction_datetime)]
         formatted_temperatures = OutputDataHandler._format_temperatures(filtered_temperatures)
-        self._source.write_new_data(OutputDataHandler.TABLE_NAMES['temperatures'], formatted_temperatures)
+        self._source.write_new_data(self._table_names['temperatures'], formatted_temperatures)
 
-        self._source.write_new_data(OutputDataHandler.TABLE_NAMES['temperatures_diff'],
+        self._source.write_new_data(self._table_names['temperatures_diff'],
                                     OutputDataHandler._build_temperatures_diff(filtered_temperatures))
 
-        self._source.write_new_data(OutputDataHandler.TABLE_NAMES['temperatures_std'],
+        self._source.write_new_data(self._table_names['temperatures_std'],
                                     OutputDataHandler._build_temperatures_std(filtered_temperatures))
         return
