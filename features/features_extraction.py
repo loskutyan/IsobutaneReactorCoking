@@ -57,7 +57,7 @@ def extract_sensor_position_features(timestamps, sensor_id, plate):
 
 
 def calculate_linear_trend(values_series):
-    x = (values_series.index - values_series.index[0]).total_seconds() / 3600
+    x = (values_series.index - values_series.index[-1]).total_seconds() / 3600
     x_matrix = np.vstack([x, np.ones(len(x))]).T
     y = values_series.values
     coef, intercept = np.linalg.lstsq(x_matrix, y, None)[0]

@@ -35,7 +35,9 @@ class DataPostprocessor:
         for col in data.columns:
             sensor_id, horizon = col.split(':')
             new_columns[col] = '{}:{}'.format(self._convert_sensor_id(sensor_id), horizon)
-        return data.rename(columns=new_columns).reindex(data.index.rename(constants.OUTPUT_DATETIME_COLUMN))
+        return data.rename(columns=new_columns)\
+            .reindex(data.index.rename(constants.OUTPUT_DATETIME_COLUMN))\
+            .rolling(constants.PREDICTION_SMOOTHING_PERIOD).mean()
 
     def process_temperatures(self, data):
         return data.rename(columns=self._convert_sensor_id).reindex(data.index.rename(constants.OUTPUT_DATETIME_COLUMN))

@@ -4,6 +4,8 @@ ONE_SECOND_DELTA = datetime.timedelta(seconds=1)
 TWELVE_HOURS_DELTA = datetime.timedelta(hours=12)
 MIN_DATETIME = datetime.datetime(1900, 1, 1)
 
+PREDICTION_SMOOTHING_PERIOD = datetime.timedelta(hours=48)
+
 TEMPERATURES_HISTORY = datetime.timedelta(days=4)
 
 NN_NORMALIZING_EXPECTATION_EVALUATION = 500.
