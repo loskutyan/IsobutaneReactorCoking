@@ -51,15 +51,21 @@ class OutputDataHandler:
         return pd.concat(formatted_predictions, sort=False)
 
     @staticmethod
+    def _smooth_and_filter(data):
+        smoothed = data.rolling(constants.STATISTICS_SMOOTHING_PERIOD).mean()
+        return smoothed[smoothed.index.map(lambda dt: dt.minute % constants.STATISTICS_INDEX_FILTERING_MINUTES == 0)]
+
+    @staticmethod
     def _format_temperatures(temperatures):
-        rows_number = temperatures.shape[0]
+        smoother_and_filtered = OutputDataHandler._smooth_and_filter(temperatures)
+        rows_number = smoother_and_filtered.shape[0]
         formatted_temperatures = []
-        for col in temperatures.columns:
+        for col in smoother_and_filtered.columns:
             plate_num, sensor_num = col.split(':')
-            formatted_temperatures.append(pd.DataFrame({'Температура': temperatures[col],
+            formatted_temperatures.append(pd.DataFrame({'Температура': smoother_and_filtered[col],
                                                         'Решетка': [int(plate_num)] * rows_number,
                                                         'Датчик': [int(sensor_num)] * rows_number},
-                                                       index=temperatures.index))
+                                                       index=smoother_and_filtered.index))
         return pd.concat(formatted_temperatures, sort=False)
 
     @staticmethod
@@ -70,15 +76,16 @@ class OutputDataHandler:
         plates_numbers = sorted(plates_columns.keys())
         if len(plates_numbers) < 2:
             return pd.DataFrame()
-        rows_number = raw_temperatures.shape[0]
         diffs = []
         for i in range(len(plates_numbers) - 1):
             plate_below_num, plate_above_num = plates_numbers[i], plates_numbers[i + 1]
             plate_below_mean = raw_temperatures[plates_columns[plate_below_num]].mean(axis=1)
             plate_above_mean = raw_temperatures[plates_columns[plate_above_num]].mean(axis=1)
+            smoother_and_filtered_diff = OutputDataHandler._smooth_and_filter(plate_above_mean - plate_below_mean)
+            rows_number = smoother_and_filtered_diff.shape[0]
             diffs.append(pd.DataFrame({'Решетки': ['{} - {}'.format(plate_above_num, plate_below_num)] * rows_number,
-                                       'Разность температур': plate_above_mean - plate_below_mean},
-                                      index=raw_temperatures.index))
+                                       'Разность температур': smoother_and_filtered_diff},
+                                      index=smoother_and_filtered_diff.index))
         return pd.concat(diffs, sort=False)
 
     @staticmethod
@@ -90,9 +97,11 @@ class OutputDataHandler:
         stds = []
         for plate_num, plate_columns in plates_columns.items():
             plate_std = raw_temperatures[plate_columns].std(axis=1)
+            smoother_and_filtered_std = OutputDataHandler._smooth_and_filter(plate_std)
+            rows_number = smoother_and_filtered_std.shape[0]
             stds.append(pd.DataFrame({'Решетка': [int(plate_num)] * rows_number,
-                                      'Стандартное отклонение': plate_std},
-                                     index=raw_temperatures.index))
+                                      'Стандартное отклонение': smoother_and_filtered_std},
+                                     index=smoother_and_filtered_std.index))
         return pd.concat(stds, sort=False)
 
     def update_predictions_and_statistics(self, predictions, temperatures):

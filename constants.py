@@ -5,6 +5,9 @@ TWELVE_HOURS_DELTA = datetime.timedelta(hours=12)
 MIN_DATETIME = datetime.datetime(1900, 1, 1)
 
 PREDICTION_SMOOTHING_PERIOD = datetime.timedelta(hours=48)
+STATISTICS_SMOOTHING_PERIOD = datetime.timedelta(minutes=10)
+STATISTICS_INDEX_FILTERING_MINUTES = 10
+
 
 TEMPERATURES_HISTORY = datetime.timedelta(days=4)
 
