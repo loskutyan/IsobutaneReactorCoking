@@ -14,8 +14,11 @@ class DataPreprocessor:
         result = data[list(reactor_tags.keys())].rename(columns=reactor_tags).dropna(how='all')
         return result.reindex(result.index.rename(constants.MODEL_DATETIME_COLUMN))
 
-    def process_analysis(self, reactor_name, data):
-        return DataPreprocessor._collect_tags_data(reactor_name, self._analysis_tags, data, 'analysis').interpolate()
+    def process_analysis(self, reactor_name, data, last_exclude_datetime=None):
+        result = DataPreprocessor._collect_tags_data(reactor_name, self._analysis_tags, data, 'analysis').interpolate()
+        if not last_exclude_datetime:
+            return result
+        return result.loc[result.index > last_exclude_datetime]
 
     def process_temperatures(self, reactor_name, data):
         return DataPreprocessor._collect_tags_data(reactor_name, self._temperatures_tags, data, 'temperatures')

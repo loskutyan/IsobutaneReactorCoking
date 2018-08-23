@@ -31,18 +31,20 @@ def main(argv):
 
     last_output_datetime = output_data_handler.find_last_prediction_datetime()
     since_temperatures_datetime = None
+    since_analysis_datetime = last_output_datetime
     if last_output_datetime != constants.MIN_DATETIME:
         since_temperatures_datetime = last_output_datetime - constants.TEMPERATURES_HISTORY
+        since_analysis_datetime = last_output_datetime - constants.ANALYSIS_HISTORY
 
     raw_temps = input_data_handler.get_temperatures(since_datetime=since_temperatures_datetime)
-    raw_chemical = input_data_handler.get_analysis(since_datetime=last_output_datetime)
+    raw_chemical = input_data_handler.get_analysis(since_datetime=since_analysis_datetime)
     if raw_chemical.shape[0] == 0:
         warnings.warn('no new data since last prediction {}'.format(str(last_output_datetime)),
                       exceptions.NoNewDataWarning)
         return 1
 
     temps = preprocessor.process_temperatures(reactor_name, raw_temps)
-    chemical = preprocessor.process_analysis(reactor_name, raw_chemical)
+    chemical = preprocessor.process_analysis(reactor_name, raw_chemical, last_output_datetime)
     predictions = pd.DataFrame()
 
     # move to features postprocessor

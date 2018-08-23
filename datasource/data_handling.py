@@ -24,7 +24,7 @@ class InputDataHandler:
         for table_type, table_name in self._table_names.items():
             if table_type == 'temperatures':
                 continue
-            analysis_data_list.append(self._source.get_data_since(self._table_names[table_type], since_datetime, False))
+            analysis_data_list.append(self._source.get_data_since(self._table_names[table_type], since_datetime))
         return pd.concat(analysis_data_list, axis=1, sort=True, join='outer')
 
 
@@ -141,12 +141,12 @@ class OutputDataHandler:
         self._source.write_new_data(self._table_names['plates_temperatures_std'],
                                     OutputDataHandler._build_temperatures_plates_std(filtered_temperatures))
 
-        # min_temperatures_datetime_for_std = last_prediction_datetime
-        # if last_prediction_datetime != constants.MIN_DATETIME:
-        #     min_temperatures_datetime_for_std = last_prediction_datetime - constants.TEMPERATURES_STD_PERIOD
-        # temperatures_filtered_for_std = temperatures.loc[(temperatures.index > min_temperatures_datetime_for_std)
-        #                                                  & (temperatures.index <= last_new_prediction_datetime)]
-        # temperatures_std = OutputDataHandler._build_temperatures_std(temperatures_filtered_for_std)
-        # filtered_temperatures_std = temperatures_std.loc[temperatures_std.index > last_prediction_datetime].dropna()
-        # self._source.write_new_data(self._table_names['temperatures_std'], filtered_temperatures_std)
+        min_temperatures_datetime_for_std = last_prediction_datetime
+        if last_prediction_datetime != constants.MIN_DATETIME:
+            min_temperatures_datetime_for_std = last_prediction_datetime - constants.TEMPERATURES_STD_PERIOD
+        temperatures_filtered_for_std = temperatures.loc[(temperatures.index > min_temperatures_datetime_for_std)
+                                                         & (temperatures.index <= last_new_prediction_datetime)]
+        temperatures_std = OutputDataHandler._build_temperatures_std(temperatures_filtered_for_std)
+        filtered_temperatures_std = temperatures_std.loc[temperatures_std.index > last_prediction_datetime].dropna()
+        self._source.write_new_data(self._table_names['temperatures_std'], filtered_temperatures_std)
         return
